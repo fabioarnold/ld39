@@ -1,0 +1,9 @@
+[submodule "gamelib"]
+	path = lib/gamelib
+	url = https://github.com/fabioarnold/gamelib
+[submodule "lib/fontstash"]
+	path = lib/fontstash
+	url = https://github.com/fabioarnold/Font-Stash
+[submodule "lib/imgui"]
+	path = lib/imgui
+	url = https://github.com/ocornut/imgui

@@ -1,0 +1,7 @@
+{
+	"files.associations": {
+		"system_error": "cpp",
+		"type_traits": "cpp"
+	},
+	"python.linting.pylintEnabled": false
+}

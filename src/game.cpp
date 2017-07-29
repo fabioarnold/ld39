@@ -61,9 +61,7 @@ void Game::tick(float delta_time) {
 	track.draw(camera.view_proj_mat);
 	car_model.draw(camera.view_proj_mat * car_mat);
 
-	glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 	debug_renderer.render(camera.view_proj_mat);
-	glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 
 #if 0
 	if (fmodf(angle, 0.2f) > 0.1f) {

@@ -28,7 +28,7 @@ void Track::init() {
 		"	vec3 normal = normalize(v_normal);		\n"
 		"	float shade = 0.75 + 0.25*dot(normal, -light);\n"
 		"	float dist = (gl_FragCoord.z / gl_FragCoord.w) / 400.0;\n"
-		"	float fog = 1.0f - dist*dist;\n"
+		"	float fog = 1.0 - dist*dist;\n"
 		"	shade *= v_abyss * fog;\n"
 		"	gl_FragColor = vec4(shade*color.rgb, color.a);\n"
 		"}											\n"
@@ -167,11 +167,13 @@ void Track::draw(mat4 view_proj_mat) {
 
 	//glDisable(GL_DEPTH_TEST);
 
+#ifdef DEBUG
 	ImGui::Begin("track");
 	static float _difficulty = 0.0f;
 	ImGui::SliderFloat("difficulty", &_difficulty, 0.0f, 1.0f);
 	if (ImGui::Button("generate")) generate(_difficulty);
 	ImGui::End();
+#endif
 
 	if (!_vbo) return;
 

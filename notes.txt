@@ -14,3 +14,5 @@ distance meter at top
 gas meter overlayed to see if you can make it
 from level to level increase gas depletion rate and number of obstacles
 show score (meters travaled + seconds survived)
+
+shitty physics

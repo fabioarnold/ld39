@@ -1,6 +1,7 @@
 class Game {
 public:
 	VideoMode video;
+	Camera camera;
 
 	bool quit;
 

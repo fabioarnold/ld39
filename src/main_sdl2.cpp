@@ -3,6 +3,7 @@
 #include <math.h> // for fabsf
 #include <float.h> // for FLT_MAX
 #include <stdlib.h>
+#include <unistd.h>
 
 // SDL2
 #include <SDL.h>
@@ -39,16 +40,27 @@
 #include <system/log.h>
 #include <system/frametime.h>
 #include <math/vector_math.h>
+#include <math/transform.h>
 #include <input/input.h>
 #include <video/video_mode.h>
+#include <video/camera.h>
 #include <video/shader.h>
 #include <video/debug_renderer.h>
+#include <video/image.h>
+#include <video/texture.h>
+#include <video/model_mdl.h>
 
+#include <math/transform.cpp>
 #include <system/files.cpp>
 #include <system/log.cpp>
 #include <system/frametime_sdl2.cpp>
+#include <video/camera.cpp>
 #include <video/shader.cpp>
 #include <video/debug_renderer.cpp>
+#include <video/image.cpp>
+#include <video/texture.cpp>
+#include <video/texture_null.cpp>
+#include <video/model_mdl.cpp>
 
 
 
@@ -311,8 +323,8 @@ int main(int argc, char *argv[]) {
 	game = new Game();
 
 	// reasonable defaults
-	game->video.width = 640;
-	game->video.height = 400;
+	game->video.width = 1024;
+	game->video.height = 640;
 	game->video.fullscreen = false;
 #ifdef USE_OPENGLES
 	game->video.fullscreen = true;

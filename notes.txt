@@ -1,0 +1,16 @@
+theme: running out of power
+
+name: death race 9000
+
+genre: arcade racing game
+tech: 3D!!!
+objective: reach finish line (a gas station)
+problem: running out of gas
+obstacles: falling off track, oil spills (lose control), ramps, mines, axe pendulums, shooting arrows
+items: collect gas tanks, coins (for score), turbo boost, invincibility (shield)
+track: something desert like procedurally generated
+
+distance meter at top
+gas meter overlayed to see if you can make it
+from level to level increase gas depletion rate and number of obstacles
+show score (meters travaled + seconds survived)

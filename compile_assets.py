@@ -142,7 +142,7 @@ if os.path.exists(src_dirname+"/gfx"):
 
 		if not os.path.exists(dst_gfx_filename) or isFileNewer(src_gfx_filename, dst_gfx_filename):
 			print("converting "+gfx)
-			subprocess.call(["convert", src_gfx_filename, "-flip", "-type", "truecolormatte", dst_gfx_filename])
+			subprocess.call(["convert", "-strip", src_gfx_filename, "-flip", "-type", "truecolormatte", dst_gfx_filename])
 			setTGAOriginTop(dst_gfx_filename)
 			#subprocess.call(["sh", "scripts/set_tga_origin_top.sh", dst_gfx_filename])
 

@@ -63,7 +63,7 @@ void Track::generate(float difficulty) {
 	const float segment_min_length = 10.0f;
 	const float segment_max_length = 30.0f;
 	const float segment_min_height = 10.0f;
-	const float segment_max_height_delta = 2.0f;
+	const float segment_max_height_delta = 0.0f; //2.0f;
 	const float segment_angle_max_delta = 0.125f * (float)M_PI; // 22.5°
 
 	float distance = 0.0f; // current distance
@@ -166,14 +166,6 @@ void Track::draw(mat4 view_proj_mat) {
 	//if (_vertex_count == 0) return;
 
 	//glDisable(GL_DEPTH_TEST);
-
-#ifdef DEBUG
-	ImGui::Begin("track");
-	static float _difficulty = 0.0f;
-	ImGui::SliderFloat("difficulty", &_difficulty, 0.0f, 1.0f);
-	if (ImGui::Button("generate")) generate(_difficulty);
-	ImGui::End();
-#endif
 
 	if (!_vbo) return;
 

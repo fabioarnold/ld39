@@ -67,9 +67,11 @@
 
 
 
+#include "player.h"
 #include "track.h"
 #include "game.h"
 
+#include "player.cpp"
 #include "track.cpp"
 #include "game.cpp"
 
@@ -313,7 +315,7 @@ void mainLoop() {
 	ImGui_ImplSdlGL2_NewFrame();
 #endif
 
-	game->tick((float)frametime.smoothed_frame_time);
+	game->tick(1.0f / 60.0f /*(float)frametime.smoothed_frame_time*/);
 
 #ifdef DEBUG
 	frametime.drawInfo();
@@ -344,18 +346,12 @@ int main(int argc, char *argv[]) {
 	debug_renderer.init();
 
 	// init default key bindings
-	/*
-	keyboard.bind(SDL_SCANCODE_A, &game->player_controls[0].button_aim_left);
-	keyboard.bind(SDL_SCANCODE_D, &game->player_controls[0].button_aim_right);
-	keyboard.bind(SDL_SCANCODE_W, &game->player_controls[0].button_aim_up);
-	keyboard.bind(SDL_SCANCODE_S, &game->player_controls[0].button_aim_down);
-	keyboard.bind(SDL_SCANCODE_LEFT,  &game->player_controls[0].button_move_left);
-	keyboard.bind(SDL_SCANCODE_RIGHT, &game->player_controls[0].button_move_right);
-	keyboard.bind(SDL_SCANCODE_UP,    &game->player_controls[0].button_move_up);
-	keyboard.bind(SDL_SCANCODE_DOWN,  &game->player_controls[0].button_move_down);
-	keyboard.bind(SDL_SCANCODE_SPACE, &game->player_controls[0].button_fire);
-	game->player_controls[0].use_keyboard = true;
-	*/
+	keyboard.bind(SDL_SCANCODE_LEFT,  &game->player.controls.button_steer_left);
+	keyboard.bind(SDL_SCANCODE_RIGHT, &game->player.controls.button_steer_right);
+	keyboard.bind(SDL_SCANCODE_UP,    &game->player.controls.button_accelerate);
+	keyboard.bind(SDL_SCANCODE_DOWN,  &game->player.controls.button_decelerate);
+	//keyboard.bind(SDL_SCANCODE_SPACE, &game->player.controls.button_fire);
+	//game->player.controls.use_keyboard = true;
 
 	// enable OpenGL alpha blending
 	glEnable(GL_BLEND);

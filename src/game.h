@@ -3,6 +3,8 @@ public:
 	VideoMode video;
 	Camera camera;
 
+	Player player; // the car
+
 	bool quit;
 
 	Track track;

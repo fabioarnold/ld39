@@ -2,7 +2,7 @@ struct sth_stash* font_stash = nullptr;
 const int FONT_STASH_SIZE = 512;
 int font_opensans = 0;
 
-MDLModel car_model;
+MDLModel Player::car_model;
 
 void Game::init() {
 	// setup gl
@@ -23,7 +23,8 @@ void Game::init() {
 	}
 
 	// load meshes
-	car_model.load("data/models/car.mdl");
+	Player::car_model.load("data/models/car.mdl");
+	player.init();
 
 	// generate track
 	track.init();
@@ -32,34 +33,50 @@ void Game::init() {
 
 void Game::destroy() {
 	// free gl resources
-	car_model.destroy();
+	player.car_model.destroy();
 }
 
 void Game::tick(float delta_time) {
 	static int counter = 0;
 	counter++;
 	if (counter > 60) {
-		track.generate(0.0f);
+		//track.generate(0.0f);
 		counter = 0;
 	}
 
-	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+	static float camera_laziness = 0.25f;
+#ifdef DEBUG
+	ImGui::Begin("camera");
+	ImGui::SliderFloat("laziness", &camera_laziness, 0.0f, 1.0f);
+	ImGui::End();
+
+	ImGui::Begin("track");
+	static float track_difficulty = 0.0f;
+	ImGui::SliderFloat("difficulty", &track_difficulty, 0.0f, 1.0f);
+	if (ImGui::Button("generate")) track.generate(track_difficulty);
+	ImGui::End();
+#endif
+
+	player.tick(delta_time);
+
+	vec3 camera_target_location = player.position + v3(-10.0f * dirFromAngle(player.z_angle), 8.0f);
+	float camera_target_y_angle = -player.z_angle + 0.5f * (float)M_PI;
+
+	camera.location = mix(camera.location, camera_target_location, camera_laziness);
+	camera.euler_angles.y = mix(camera.euler_angles.y, camera_target_y_angle, camera_laziness);
 
 	camera.field_of_view = 0.25f * (float)M_PI; // 45°
 	camera.aspect_ratio = (float)video.width / (float)video.height;
 	camera.setPerspectiveProjection(0.1f, 1000.0f);
-	camera.location = v3(0.0f, -6.0f, 58.0f); //v3(0.0f, -50.0f, 20.0f);
 	camera.euler_angles.x = -0.39f * (float)M_PI; // 90°
 	camera.updateRotationMatrix();
 	camera.updateViewMatrix();
 	camera.updateViewProjectionMatrix();
 
-	static float angle = 0.0f;
-	mat4 car_mat = translationMatrix(v3(0.0f, 4.0f, 50.0f)) * m4(rotationMatrix(v3(0.0f, 0.0f, 1.0f), angle));
-	angle += delta_time;
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 	track.draw(camera.view_proj_mat);
-	car_model.draw(camera.view_proj_mat * car_mat);
+	player.draw(camera.view_proj_mat);
 
 	debug_renderer.render(camera.view_proj_mat);
 

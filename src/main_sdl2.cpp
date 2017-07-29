@@ -4,6 +4,7 @@
 #include <float.h> // for FLT_MAX
 #include <stdlib.h>
 #include <unistd.h>
+#include <vector>
 
 // SDL2
 #include <SDL.h>
@@ -39,7 +40,9 @@
 #include <system/files.h>
 #include <system/log.h>
 #include <system/frametime.h>
+#include <math/random.h>
 #include <math/vector_math.h>
+#include <math/trigonometry.h>
 #include <math/transform.h>
 #include <input/input.h>
 #include <video/video_mode.h>
@@ -64,8 +67,10 @@
 
 
 
+#include "track.h"
 #include "game.h"
 
+#include "track.cpp"
 #include "game.cpp"
 
 const char *WINDOW_TITLE = "Ludum Dare 39";

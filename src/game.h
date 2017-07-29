@@ -5,6 +5,8 @@ public:
 
 	bool quit;
 
+	Track track;
+
 	void init();
 	void destroy();
 

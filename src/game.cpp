@@ -6,8 +6,9 @@ MDLModel car_model;
 
 void Game::init() {
 	// setup gl
+	glEnable(GL_CULL_FACE);
 	glEnable(GL_DEPTH_TEST);
-	glClearColor(0.2f, 0.6f, 0.9f, 0.0f);
+	glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
 
 	// init fonts
 	font_stash = sth_create(FONT_STASH_SIZE, FONT_STASH_SIZE);
@@ -23,6 +24,10 @@ void Game::init() {
 
 	// load meshes
 	car_model.load("data/models/car.mdl");
+
+	// generate track
+	track.init();
+	track.generate(0.0f);
 }
 
 void Game::destroy() {
@@ -31,22 +36,34 @@ void Game::destroy() {
 }
 
 void Game::tick(float delta_time) {
+	static int counter = 0;
+	counter++;
+	if (counter > 60) {
+		track.generate(0.0f);
+		counter = 0;
+	}
+
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 	camera.field_of_view = 0.25f * (float)M_PI; // 45°
 	camera.aspect_ratio = (float)video.width / (float)video.height;
-	camera.setPerspectiveProjection(0.1f, 100.0f);
-	camera.location = v3(0.0f, -50.0f, 20.0f);
-	camera.euler_angles.x = -0.45f * (float)M_PI; // 90°
+	camera.setPerspectiveProjection(0.1f, 1000.0f);
+	camera.location = v3(0.0f, -6.0f, 58.0f); //v3(0.0f, -50.0f, 20.0f);
+	camera.euler_angles.x = -0.39f * (float)M_PI; // 90°
 	camera.updateRotationMatrix();
 	camera.updateViewMatrix();
 	camera.updateViewProjectionMatrix();
 
 	static float angle = 0.0f;
-	mat4 car_mat = m4(rotationMatrix(v3(0.0f, 0.0f, 1.0f), angle));
+	mat4 car_mat = translationMatrix(v3(0.0f, 4.0f, 50.0f)) * m4(rotationMatrix(v3(0.0f, 0.0f, 1.0f), angle));
 	angle += delta_time;
 
+	track.draw(camera.view_proj_mat);
 	car_model.draw(camera.view_proj_mat * car_mat);
+
+	glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+	debug_renderer.render(camera.view_proj_mat);
+	glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 
 #if 0
 	if (fmodf(angle, 0.2f) > 0.1f) {

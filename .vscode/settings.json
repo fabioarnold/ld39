@@ -1,7 +1,14 @@
 {
 	"files.associations": {
 		"system_error": "cpp",
-		"type_traits": "cpp"
+		"type_traits": "cpp",
+		"fontstash.c": "cpp",
+		"gl3w.c": "cpp",
+		"array": "cpp",
+		"hash_map": "cpp",
+		"slist": "cpp",
+		"initializer_list": "cpp",
+		"utility": "cpp"
 	},
 	"python.linting.pylintEnabled": false
 }

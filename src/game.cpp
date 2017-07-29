@@ -61,9 +61,17 @@ void Game::tick(float delta_time) {
 
 	vec3 camera_target_location = player.position + v3(-10.0f * dirFromAngle(player.z_angle), 8.0f);
 	float camera_target_y_angle = -player.z_angle + 0.5f * (float)M_PI;
+	if (player.speed < 0.0f) {
+		camera_target_y_angle -= (float)M_PI; // reversing
+		camera_target_location = player.position + v3(10.0f * dirFromAngle(player.z_angle), 8.0f);
+	}
 
 	camera.location = mix(camera.location, camera_target_location, camera_laziness);
-	camera.euler_angles.y = mix(camera.euler_angles.y, camera_target_y_angle, camera_laziness);
+	//float delta = wrapMPi(camera_target_y_angle - camera.euler_angles.y);
+	//if (delta > 0.0f) delta = fminf(delta, 10.0f*delta_time);
+	//if (delta < 0.0f) delta = fmaxf(delta, -10.0f*delta_time);
+	//camera.euler_angles.y = wrapMPi(camera.euler_angles.y + delta);
+	camera.euler_angles.y = mixAngles(camera.euler_angles.y, camera_target_y_angle, camera_laziness);
 
 	camera.field_of_view = 0.25f * (float)M_PI; // 45°
 	camera.aspect_ratio = (float)video.width / (float)video.height;

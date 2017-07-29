@@ -58,8 +58,8 @@ struct Segment {
 
 void Track::generate(float difficulty) {
 	const float max_distance = 1000.0f; // 1km
-	const float segment_min_width = 6.0f;
-	const float segment_max_width = 12.0f;
+	const float segment_min_width = 10.0f;
+	const float segment_max_width = 16.0f;
 	const float segment_min_length = 10.0f;
 	const float segment_max_length = 30.0f;
 	const float segment_min_height = 10.0f;
@@ -138,14 +138,14 @@ void Track::generate(float difficulty) {
 
 	// make mesh with per face normals
 	_vertex_count = (int)indices.size();
-	int face_count = _vertex_count / 3;
+	size_t face_count = (size_t)_vertex_count / 3;
 	ARRAY_FREE(_vertex_data);
 	_vertex_data = new float[6*_vertex_count]; // for position and normal
 	vec3 p[3]; float *vdp = _vertex_data; // pointer to current vertex
-	for (int fi = 0; fi < face_count; fi++) {
-		p[0] = points[indices[3*fi+0]];
-		p[1] = points[indices[3*fi+1]];
-		p[2] = points[indices[3*fi+2]];
+	for (size_t fi = 0; fi < face_count; fi++) {
+		p[0] = points[(size_t)indices[3*fi+0]];
+		p[1] = points[(size_t)indices[3*fi+1]];
+		p[2] = points[(size_t)indices[3*fi+2]];
 		vec3 nor = normalize(cross(p[1]-p[0], p[2]-p[0]));
 
 		for (int vi = 0; vi < 3; vi++) {
@@ -158,7 +158,7 @@ void Track::generate(float difficulty) {
 	// upload vertex data
 	if (!_vbo) glGenBuffers(1, &_vbo);
 	glBindBuffer(GL_ARRAY_BUFFER, _vbo);
-	glBufferData(GL_ARRAY_BUFFER, sizeof(float) * 6 * indices.size(), _vertex_data, GL_STATIC_DRAW);
+	glBufferData(GL_ARRAY_BUFFER, (GLsizeiptr)(sizeof(float) * 6 * indices.size()), _vertex_data, GL_STATIC_DRAW);
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
 }
 

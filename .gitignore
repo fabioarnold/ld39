@@ -2,3 +2,5 @@ build
 embuild
 __pycache__
 ref
+*.blend1
+*.blend2

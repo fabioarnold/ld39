@@ -44,7 +44,7 @@ void Game::tick(float delta_time) {
 		counter = 0;
 	}
 
-	static float camera_laziness = 0.25f;
+	static float camera_laziness = 0.2f;
 #ifdef DEBUG
 	ImGui::Begin("camera");
 	ImGui::SliderFloat("laziness", &camera_laziness, 0.0f, 1.0f);
@@ -55,9 +55,17 @@ void Game::tick(float delta_time) {
 	ImGui::SliderFloat("difficulty", &track_difficulty, 0.0f, 1.0f);
 	if (ImGui::Button("generate")) track.generate(track_difficulty);
 	ImGui::End();
+
+	ImGui::Begin("effects");
+	if (ImGui::Button("oilspill")) player.onOilSpill();
+	ImGui::Checkbox("center", &player.centerOnTrack);
+	ImGui::Checkbox("left", &player.leftOnTrack);
+	ImGui::Checkbox("right", &player.rightOnTrack);
+	ImGui::End();
 #endif
 
 	player.tick(delta_time);
+	player.checkTrack(&track);
 
 	vec3 camera_target_location = player.position + v3(-10.0f * dirFromAngle(player.z_angle), 8.0f);
 	float camera_target_y_angle = -player.z_angle + 0.5f * (float)M_PI;

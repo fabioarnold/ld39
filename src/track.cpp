@@ -47,31 +47,22 @@ float rand_rangef(float min, float max) {
 	return min + randf() * (max - min);
 }
 
-
-struct Segment {
-	vec2 p; // base point
-	vec3 dims; // width, length, height
-
-	vec2 dir; // normalized
-	vec2 t; // tangent direved from dir
-};
-
 void Track::generate(float difficulty) {
 	const float max_distance = 1000.0f; // 1km
-	const float segment_min_width = 10.0f;
-	const float segment_max_width = 16.0f;
-	const float segment_min_length = 10.0f;
+	const float segment_min_width = 16.0f;
+	const float segment_max_width = 20.0f;
+	const float segment_min_length = 20.0f;
 	const float segment_max_length = 30.0f;
 	const float segment_min_height = 10.0f;
-	const float segment_max_height_delta = 0.0f; //2.0f;
+	const float segment_max_height_delta = 4.0f; //2.0f;
 	const float segment_angle_max_delta = 0.125f * (float)M_PI; // 22.5°
 
 	float distance = 0.0f; // current distance
 
 	// generate a path of segments
-	std::vector<Segment> segments;
+	segments.clear();
 
-	Segment s; // current segment
+	TrackSegment s; // current segment
 	s.p = v2(0.0f);
 	s.dir = v2(0.0f, 1.0f);
 	s.t = v2(s.dir.y, -s.dir.x);
@@ -158,8 +149,84 @@ void Track::generate(float difficulty) {
 	// upload vertex data
 	if (!_vbo) glGenBuffers(1, &_vbo);
 	glBindBuffer(GL_ARRAY_BUFFER, _vbo);
-	glBufferData(GL_ARRAY_BUFFER, (GLsizeiptr)(sizeof(float) * 6 * indices.size()), _vertex_data, GL_STATIC_DRAW);
+	glBufferData(GL_ARRAY_BUFFER, (GLsizeiptr)(sizeof(float)*6*indices.size()), _vertex_data, GL_STATIC_DRAW);
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
+}
+
+bool isPointInTriangle(vec3 p, vec3 a, vec3 b, vec3 c) {
+	a -= p; b -= p; c -= p;
+	vec3 u = cross(b, c);
+	vec3 v = cross(c, a);
+	if (dot(u, v) < 0.0f) return false;
+	vec3 w = cross(a, b);
+	if (dot(u, w) < 0.0f) return false;
+	return dot(v, w) >= 0.0f;
+}
+
+bool traceTriangleZ(vec2 p, float *z, vec3 t0, vec3 t1, vec3 t2) {
+	vec3 n = normalize(cross(t1-t0, t2-t0));
+	float d = dot(n, t0);
+	*z = (d - (n.x*p.x + n.y*p.y)) / n.z;
+	return isPointInTriangle(v3(p, *z), t0, t1, t2);
+}
+
+bool traceQuadZ(vec2 p, float *z, vec3 q0, vec3 q1, vec3 q2, vec3 q3) {
+	return traceTriangleZ(p, z, q0, q1, q2) ||
+		traceTriangleZ(p, z, q3, q2, q1);
+}
+
+bool Track::traceZ(vec2 p, float *z) {
+	// binary search potential segments
+	// this only works because segments are ordered in y direction
+
+	size_t li = 0; // lower bound
+	size_t ui = segments.size()-1; // upper bound
+	while (li <= ui) {
+		size_t pi = (li+ui)/2; // pivot
+		TrackSegment s = segments[pi];
+		vec3 b0 = v3(s.p - 0.5f*s.dims.x*s.t, s.dims.z);
+		vec3 b1 = v3(s.p + 0.5f*s.dims.x*s.t, s.dims.z);
+
+		bool is_below = p.y < fminf(b0.y, b1.y);
+
+		if (!is_below) { // so is it above?
+			vec2 tp = s.p + s.dir*s.dims.y;
+			vec2 dir = s.dir;
+			vec3 t0 = v3(tp - 0.5f*s.dims.x*s.t, s.dims.z);
+			vec3 t1 = v3(tp + 0.5f*s.dims.x*s.t, s.dims.z);
+			if (pi+1 < segments.size()) {
+				TrackSegment ns = segments[pi+1];
+				dir = ns.dir;
+				t0 = v3(ns.p - 0.5f*ns.dims.x*ns.t, ns.dims.z);
+				t1 = v3(ns.p + 0.5f*ns.dims.x*ns.t, ns.dims.z);
+			}
+
+			bool is_above = p.y > fmaxf(t0.y, t1.y);
+
+			if (!is_above) {
+				// precisely check below
+				is_below = dot(s.dir, p-s.p) < 0.0f;
+
+				if (!is_below) {
+					// precisely check above
+					is_above = dot(dir, p-tp) > 0.0f;
+
+					// we found a segment
+					if (!is_above) return traceQuadZ(p, z, b0, b1, t0, t1);
+				}
+			}
+		}
+
+		// iterate
+		if (is_below) {
+			if (pi == 0) break; // prevent integer underflow
+			ui = pi - 1;
+		} else { // above
+			li = pi + 1;
+		}
+	}
+
+	return false; // not on track
 }
 
 void Track::draw(mat4 view_proj_mat) {

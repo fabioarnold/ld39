@@ -8,7 +8,8 @@
 		"hash_map": "cpp",
 		"slist": "cpp",
 		"initializer_list": "cpp",
-		"utility": "cpp"
+		"utility": "cpp",
+		"*.ipp": "cpp"
 	},
 	"python.linting.pylintEnabled": false
 }

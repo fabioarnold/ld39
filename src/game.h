@@ -12,5 +12,7 @@ public:
 	void init();
 	void destroy();
 
+	void updateCamera(float delta_time);
+
 	void tick(float delta_time);
 };

@@ -1,0 +1,10 @@
+- level progression
+	- generate level chunks progressively
+
+
+- hud
+	- show distance traveled
+	- show fuel gauge
+
+
+falling off track

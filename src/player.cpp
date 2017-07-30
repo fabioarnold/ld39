@@ -95,11 +95,12 @@ void Player::onFellOffTrack() {
 	off_track_y_angle = 0.0f;
 
 	// throw car off track
-	float jump_up = 4.0f;
-	float nudge = 5.0f;
+	float jump_up = 5.0f;
+	float nudge = 10.0f;
+	vec2 tangent = dirFromAngle(heading - 0.5f*(float)M_PI);
 	velocity = v3(speed * dirFromAngle(heading), jump_up);
-	if (!leftOnTrack) velocity.x -= nudge;
-	if (!rightOnTrack) velocity.x += nudge;
+	if (!leftOnTrack) velocity -= nudge * v3(tangent, 0.0f);
+	if (!rightOnTrack) velocity += nudge * v3(tangent, 0.0f);
 }
 
 void Player::onExploded() {
@@ -111,7 +112,7 @@ void Player::onExploded() {
 }
 
 void Player::tick(float delta_time) {
-	const float MAX_STEERING_ANGLE = 0.125f * (float)M_PI; // 22.5°
+	const float MAX_STEERING_ANGLE = 0.5f/3.0f * (float)M_PI; // 30°
 
 	bool acceleration_disabled = false;
 	bool steering_disabled = false;
@@ -195,8 +196,8 @@ void Player::tick(float delta_time) {
 	steering_angle *= (max_speed - speed) / max_speed;
 
 	// figure out local wheel position (simplified as bicycle)
-	vec2 front_wheel_pos = dirFromAngle(heading);
-	vec2 back_wheel_pos = -0.9f * dirFromAngle(heading);
+	vec2 front_wheel_pos = 1.376f * dirFromAngle(heading);
+	vec2 back_wheel_pos = -1.186f * dirFromAngle(heading);
 
 	position -= v3(front_wheel_pos + back_wheel_pos, 0.0f); // substract old positions
 
@@ -260,7 +261,7 @@ void Player::draw(mat4 view_proj_mat) {
 			vec3 p = 2.0f * v3(randf(), randf(), randf()) - v3(1.0f);
 			float rot = (float)M_PI * randf();
 			explosion_model.draw(view_proj_mat * translationMatrix(explosion_center + p + v3(0.0f, 0.0f, 1.0f)) * 
-				m4(rotationMatrix(v3(0.0f, 0.0f, 1.0f), rot) * scaleMatrix(v3(s))));
+				m4(rotationMatrix(v3(0.0f, 1.0f, 1.0f), rot) * scaleMatrix(v3(s))));
 		}
 	}
 }

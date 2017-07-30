@@ -6,7 +6,7 @@ void Player::init() {
 	steer_left_action = car_model.getActionByName("steer_left");
 	steer_right_action = car_model.getActionByName("steer_right");
 
-	// replace shader
+	// replace explosion shader
 	{
 		const char *vert_source = 
 		"uniform mat4 mvp;"
@@ -62,6 +62,10 @@ void Player::reset() {
 	alive = true;
 	fell_off_track = false;
 	exploded = false;
+	oil_spill = 0.0f;
+
+	fuel = 1.0f;
+	distance = 0.0f;
 
 	heading = angleFromDir(v2(0.0f, 1.0f));
 	position.y = 4.0;
@@ -75,7 +79,7 @@ void Player::checkTrack(Track *track) {
 	vec2 t = dirFromAngle(heading - 0.5f*(float)M_PI);
 	leftOnTrack = track->traceZ(v2(position)-t, &z);
 	rightOnTrack = track->traceZ(v2(position)+t, &z);
-	centerOnTrack = track->traceZ(v2(position), &z);
+	centerOnTrack = track->traceZ(v2(position), &z, &distance);
 	if (centerOnTrack) {
 		position.z = z;
 	} else {
@@ -169,9 +173,14 @@ void Player::tick(float delta_time) {
 	if (!controls.button_accelerate.down() && !controls.button_decelerate.down()) {
 		// apply engine brake
 		float engine_brake_deceleration = 20.0f;
-		if (speed > 0.0f) speed -= delta_time * engine_brake_deceleration;
-		else if (speed < 0.0f) speed += delta_time * engine_brake_deceleration;
-		if (fabsf(speed) < delta_time * engine_brake_deceleration) speed = 0.0f;
+		if (speed > 0.0f) {
+			speed -= delta_time * engine_brake_deceleration;
+			if (speed < 0.0f) speed = 0.0f;
+		}
+		if (speed < -0.001f) {
+			speed += delta_time * engine_brake_deceleration;
+			if (speed > -0.001f) speed = -0.001f;
+		}
 	}
 
 	float steering_angle = 0.0f;

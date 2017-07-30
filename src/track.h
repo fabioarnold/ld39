@@ -7,8 +7,7 @@ struct TrackSegment {
 	vec2 dir; // normalized
 	vec2 t; // tangent direved from dir
 
-	// also takes next segment's point and direction (np, ndir)
-	bool traceZ(vec2 p, float *z, vec2 np, vec2 ndir); // true if on segment
+	float distance; // accumulated distance
 };
 
 const int TR_MAX_VERTEX_COUNT = 1024;
@@ -19,8 +18,9 @@ public:
 
 	// difficulty 0: no obstacles, 1: full of obstacles
 	void generate(float difficulty);
+	float length; // in meters
 
-	bool traceZ(vec2 p, float *z); // true if on track
+	bool traceZ(vec2 p, float *z, float *distance = nullptr); // true if on track
 
 	void draw(mat4 view_proj_mat);
 

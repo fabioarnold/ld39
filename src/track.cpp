@@ -71,6 +71,7 @@ void Track::generate(float difficulty) {
 
 	while (distance < max_distance) {
 		s.dims.x = rand_rangef(segment_min_width, segment_max_width);
+		s.distance = distance;
 		distance += s.dims.y;
 
 		segments.push_back(s);
@@ -91,6 +92,8 @@ void Track::generate(float difficulty) {
 		s.dir = normalize(s.dir);
 		s.t = v2(s.dir.y, -s.dir.x);
 	}
+
+	length = distance;
 
 	// generate mesh from path
 	std::vector<vec3> points;
@@ -175,7 +178,7 @@ bool traceQuadZ(vec2 p, float *z, vec3 q0, vec3 q1, vec3 q2, vec3 q3) {
 		traceTriangleZ(p, z, q3, q2, q1);
 }
 
-bool Track::traceZ(vec2 p, float *z) {
+bool Track::traceZ(vec2 p, float *z, float *distance) {
 	// binary search potential segments
 	// this only works because segments are ordered in y direction
 
@@ -205,14 +208,18 @@ bool Track::traceZ(vec2 p, float *z) {
 
 			if (!is_above) {
 				// precisely check below
-				is_below = dot(s.dir, p-s.p) < 0.0f;
+				float dp = dot(s.dir, p-s.p);
+				is_below = dp < 0.0f;
 
 				if (!is_below) {
 					// precisely check above
 					is_above = dot(dir, p-tp) > 0.0f;
 
 					// we found a segment
-					if (!is_above) return traceQuadZ(p, z, b0, b1, t0, t1);
+					if (!is_above) {
+						if (distance) *distance = s.distance + dp;
+						return traceQuadZ(p, z, b0, b1, t0, t1);
+					}
 				}
 			}
 		}

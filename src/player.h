@@ -26,6 +26,9 @@ struct Player {
 	bool fell_off_track;
 	bool exploded;
 
+	float fuel;
+	float distance; // distance in meters traveled on track
+
 	vec3 position;
 	float speed;
 	float heading;

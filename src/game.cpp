@@ -101,26 +101,74 @@ void Game::tick(float delta_time) {
 	track.draw(camera.view_proj_mat);
 	player.draw(camera.view_proj_mat);
 
-	debug_renderer.render(camera.view_proj_mat);
+	drawHUD();
 
-#if 0
-	if (fmodf(angle, 0.2f) > 0.1f) {
-		const char *text = "Super Death Race 9000";
-		vec3 text_pos = v3((float)video.width/2, (float)video.height/4, 0.0f);
-		const int font_size = 80;
-		vec4 font_color = v4(1.0f);
-		mat4 proj_mat = makeOrtho(0.0f, (float)video.width, 0.0f, (float)video.height, -1.0f, 1.0f);
+}
 
-		glDisable(GL_DEPTH_TEST);
-		sth_begin_draw(font_stash, proj_mat.e);
-		float minx, miny, maxx, maxy;
-		sth_dim_text(font_stash, font_opensans, font_size, text, &minx, &miny, &maxx, &maxy);
-		text_pos.x = floorf(text_pos.x - 0.5f * (maxx-minx));
-		text_pos.y = floorf(text_pos.y - 0.5f * (maxy-miny));
-		float dx = 0.0f;
-		sth_draw_text(font_stash, font_opensans, font_size, video.pixel_scale, text_pos.e, font_color.e, text, &dx);
-		sth_end_draw(font_stash);
-		glEnable(GL_DEPTH_TEST);
-	}
-#endif
+void drawRect(vec2 p, vec2 s) {
+	drawQuad(v3(p), v3(p + v2(s.x, 0.0f)), v3(p + s), v3(p + v2(0.0f, s.y)));
+}
+
+// position, size, thickness
+void drawBorder(vec2 p, vec2 s, float t) {
+	drawRect(p, v2(s.x - t, t));
+	drawRect(p + v2(s.x - t, 0.0f), v2(t, s.y - t));
+	drawRect(p + v2(t, s.y - t), v2(s.x - t, t));
+	drawRect(p + v2(0.0, t), v2(t, s.y - t));
+}
+
+// distance meter and fuel level
+void Game::drawHUD() {
+	float distance_left = (track.length - player.distance);
+	char distance_text[32];
+	sprintf(distance_text, "in %dm", (int)distance_left);
+
+	mat4 proj_mat = makeOrtho(0.0f, (float)video.width, 0.0f, (float)video.height, -1.0f, 1.0f);
+	float font_size = ceilf(0.1f * (float)video.height);
+	float padding = ceilf(0.025f * (float)video.height);
+	vec4 font_color = v4(1.0f);
+
+	float minx, miny, maxx, maxy;
+	sth_dim_text(font_stash, font_opensans, font_size, "FUEL:", &minx, &miny, &maxx, &maxy);
+	float text_fuel_width = maxx - minx;
+	sth_dim_text(font_stash, font_opensans, font_size, "GOAL:", &minx, &miny, &maxx, &maxy);
+	float text_goal_width = maxx - minx;
+	float max_text_width = fmaxf(text_fuel_width, text_goal_width);
+	float text_fuel_x = padding + max_text_width - text_fuel_width;
+	float text_goal_x = padding + max_text_width - text_goal_width;
+
+	sth_begin_draw(font_stash, proj_mat.e);
+	sth_draw_text(font_stash, font_opensans, font_size, video.pixel_scale, v3(text_goal_x, (float)video.height - font_size, 0.0f).e, font_color.e, "GOAL:", nullptr);
+	sth_draw_text(font_stash, font_opensans, font_size, video.pixel_scale, v3(text_fuel_x, (float)video.height - 2.0f*font_size, 0.0f).e, font_color.e, "FUEL:", nullptr);
+	sth_draw_text(font_stash, font_opensans, 0.3f*font_size, video.pixel_scale, v3(2.0f*padding + max_text_width, (float)video.height - 1.25f*font_size, 0.0f).e, font_color.e, distance_text, nullptr);
+	sth_end_draw(font_stash);
+
+
+	debug_renderer.setColor(1.0f, 1.0f, 1.0f, 1.0f);
+
+	vec2 fuel_meter_p = v2(2.0f * padding + max_text_width, (float)video.height - 2.0f*font_size);
+	vec2 fuel_meter_s = v2((float)video.width - 3.0f*padding - max_text_width, 0.55f*font_size);
+	float thickness = 0.125f * padding;
+
+	// draw fuel meter
+	drawBorder(fuel_meter_p, fuel_meter_s, thickness);
+
+	// draw goal meter
+	vec2 goal_meter_p = fuel_meter_p + v2(0.0f, font_size);
+	vec2 goal_meter_s = v2(fuel_meter_s.x, 2.0f * thickness);
+	drawRect(goal_meter_p, goal_meter_s);
+
+	float goal_x = (goal_meter_s.x-thickness) * fminf(1.0f, fmaxf(0.0f, distance_left / track.length));
+	drawRect(goal_meter_p + v2(goal_x, 0.0f), v2(thickness, fuel_meter_s.y));
+
+	// draw fuel meter filling
+	vec2 fuel_fill = fuel_meter_s - v2(4.0f * thickness);
+	fuel_fill.x *= fminf(1.0f, fmaxf(0.0f, player.fuel));
+	debug_renderer.setColor(1.0f, 0.0f, 0.0f, 0.5f);
+	drawRect(fuel_meter_p + v2(2.0f * thickness), fuel_fill);
+
+	// abuse the debug renderer
+	glDisable(GL_DEPTH_TEST);
+	debug_renderer.render(proj_mat);
+	glEnable(GL_DEPTH_TEST);
 }

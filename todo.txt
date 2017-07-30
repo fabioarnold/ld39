@@ -7,4 +7,6 @@
 	- show fuel gauge
 
 
-falling off track
+x falling off track
+x explosion
+goal (gas station)

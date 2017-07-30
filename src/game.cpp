@@ -2,8 +2,6 @@ struct sth_stash* font_stash = nullptr;
 const int FONT_STASH_SIZE = 512;
 int font_opensans = 0;
 
-MDLModel Player::car_model;
-
 void Game::init() {
 	// setup gl
 	glEnable(GL_CULL_FACE);
@@ -24,6 +22,7 @@ void Game::init() {
 
 	// load meshes
 	Player::car_model.load("data/models/car.mdl");
+	Player::explosion_model.load("data/models/explosion.mdl");
 	player.init();
 
 	// generate track
@@ -34,6 +33,7 @@ void Game::init() {
 void Game::destroy() {
 	// free gl resources
 	player.car_model.destroy();
+	player.explosion_model.destroy();
 }
 
 static float camera_laziness = 0.2f;
@@ -45,7 +45,7 @@ void Game::updateCamera(float delta_time) {
 		camera_target_location = player.position + v3(10.0f * dirFromAngle(player.heading), 8.0f);
 	}
 
-	if (player.state != PS_FELL_OFF_TRACK) { // don't follow the player off track
+	if (!player.fell_off_track) { // don't follow the player off track
 		camera.location = mix(camera.location, camera_target_location, camera_laziness);
 	}
 	//float delta = wrapMPi(camera_target_y_angle - camera.euler_angles.y);
@@ -83,6 +83,7 @@ void Game::tick(float delta_time) {
 	ImGui::End();
 
 	ImGui::Begin("effects");
+	if (ImGui::Button("explode")) player.onExploded();
 	if (ImGui::Button("oilspill")) player.onOilSpill();
 	ImGui::Checkbox("center", &player.centerOnTrack);
 	ImGui::Checkbox("left", &player.leftOnTrack);

@@ -1,20 +1,75 @@
+MDLModel Player::car_model;
+MDLModel Player::explosion_model;
+
 void Player::init() {
 	idle_action = car_model.getActionByName("idle");
 	steer_left_action = car_model.getActionByName("steer_left");
 	steer_right_action = car_model.getActionByName("steer_right");
 
+	// replace shader
+	{
+		const char *vert_source = 
+		"uniform mat4 mvp;"
+		"uniform mat4 bone_mats[16];"
+		"attribute vec3 va_position;"
+		"attribute vec2 va_texcoord0;"
+		"attribute vec4 va_bone_indices;"
+		"attribute vec3 va_bone_weights;"
+		"varying vec3 v_normal;"
+		"varying vec2 v_texcoord0;"
+		"void main() {"
+		"\tv_texcoord0 = va_texcoord0;"
+		"\tivec4 bone_indices = ivec4(va_bone_indices);"
+		"\tfloat bone_weight3 = 1.0 - va_bone_weights[0] - va_bone_weights[1] - va_bone_weights[2];"
+		"\tmat4 bone_mat = va_bone_weights[0] * bone_mats[bone_indices[0]];"
+		"\tbone_mat += va_bone_weights[1] * bone_mats[bone_indices[1]];"
+		"\tbone_mat += va_bone_weights[2] * bone_mats[bone_indices[2]];"
+		"\tbone_mat += bone_weight3 * bone_mats[bone_indices[3]];"
+		"\tgl_Position = mvp*bone_mat*vec4(va_position, 1.0);"
+		"}";
+
+		const char *frag_source =
+		"#ifdef GL_ES\n"
+		"precision mediump float;\n"
+		"#endif\n"
+		"uniform sampler2D colormap;"
+		"varying vec2 v_texcoord0;"
+		"void main() {"
+		"\tvec4 color = texture2D(colormap, v_texcoord0);"
+		"if (color.a < 0.01) discard;"
+		"\tgl_FragColor = vec4(color.rgb, color.a);"
+		"}";
+
+		explosion_model.shader.destroy();
+		explosion_model.shader.compileAndAttach(GL_VERTEX_SHADER, vert_source);
+		explosion_model.shader.compileAndAttach(GL_FRAGMENT_SHADER, frag_source);
+		explosion_model.vertex_arrays[0].format.bindShaderAttribs(&explosion_model.shader);
+		explosion_model.shader.link();
+		explosion_model.shader.use();
+		explosion_model.mvp_loc = explosion_model.shader.getUniformLocation("mvp");
+		explosion_model.normal_mat_loc = explosion_model.shader.getUniformLocation("normal_mat");
+		explosion_model.bone_mats_loc = explosion_model.shader.getUniformLocation("bone_mats");
+		explosion_model.colormap_loc = explosion_model.shader.getUniformLocation("colormap");
+		glBindTexture(GL_TEXTURE_2D, explosion_model.textures[0]);
+		setFilterTexture2D(GL_NEAREST, GL_NEAREST);
+	}
+	spin_action = explosion_model.getActionByName("spin");
+
 	reset();
 }
 
 void Player::reset() {
-	state = PS_ALIVE;
+	alive = true;
+	fell_off_track = false;
+	exploded = false;
+
 	heading = angleFromDir(v2(0.0f, 1.0f));
 	position.y = 4.0;
 	position.z = 50.0f;
 }
 
 void Player::checkTrack(Track *track) {
-	if (state != PS_ALIVE) return; // no need to do collision checks
+	if (!alive) return; // no need to do collision checks
 
 	float z;
 	vec2 t = dirFromAngle(heading - 0.5f*(float)M_PI);
@@ -29,14 +84,26 @@ void Player::checkTrack(Track *track) {
 }
 
 void Player::onFellOffTrack() {
-	state = PS_FELL_OFF_TRACK;
+	fell_off_track = true;
+	alive = false;
+
+	off_track_time = 0.0f;
 	off_track_y_angle = 0.0f;
-	
-	float jump_up = 2.0f;
+
+	// throw car off track
+	float jump_up = 4.0f;
 	float nudge = 5.0f;
 	velocity = v3(speed * dirFromAngle(heading), jump_up);
 	if (!leftOnTrack) velocity.x -= nudge;
 	if (!rightOnTrack) velocity.x += nudge;
+}
+
+void Player::onExploded() {
+	exploded = true;
+	alive = false;
+
+	explosion_center = position + v3(0.0f, 0.0f, 1.0f);
+	explosion_time = 0.0f;
 }
 
 void Player::tick(float delta_time) {
@@ -46,11 +113,21 @@ void Player::tick(float delta_time) {
 	bool steering_disabled = false;
 
 	// handle effects
-	if (state != PS_ALIVE) {
-		if (state == PS_FELL_OFF_TRACK) {
-			off_track_y_angle += delta_time * velocity.x;
+	spin_action->frame++;
+	spin_action->frame %= spin_action->frame_count-1;
+	explosion_model.applyAction(spin_action);
+
+	if (!alive) {
+		if (fell_off_track) {
+			off_track_time += delta_time;
+			if (!exploded && off_track_time > 1.5f) onExploded();
+
+			off_track_y_angle += delta_time * 2.0f * dot(dirFromAngle(heading - 0.5f*(float)M_PI), v2(velocity));
 			velocity += delta_time * v3(0.0f, 0.0f, -10.0f); // gravity (shitty physics)
 			position += delta_time * velocity;
+		}
+		if (exploded) {
+			explosion_time += delta_time;
 		}
 		return;
 	}
@@ -64,12 +141,12 @@ void Player::tick(float delta_time) {
 
 	// off track stuff
 	if (!leftOnTrack || !rightOnTrack) {
-		timeOffTrack += delta_time;
-		if (timeOffTrack > HALF_OFF_TRACK_DURATION) {
+		timeHalfOffTrack += delta_time;
+		if (timeHalfOffTrack > HALF_OFF_TRACK_DURATION) {
 			onFellOffTrack();
 		}
 	} else {
-		timeOffTrack = 0.0f;
+		timeHalfOffTrack = 0.0f;
 	}
 
 	float acceleration = fmaxf(24.0f - 0.5f*speed, 0.0f); // actually acceleration is a curve...
@@ -147,18 +224,14 @@ void Player::draw(mat4 view_proj_mat) {
 
 	// on the brink off falling off track animation
 	if (!leftOnTrack || !rightOnTrack) {
-		float c = cosf(10.0f*timeOffTrack);
+		float c = cosf(10.0f*timeHalfOffTrack);
 		if (!leftOnTrack) c = c - 1.0f;
 		else c = 1.0f - c;
-		y_angle = fminf(timeOffTrack, 0.25f)*c;
+		y_angle = fminf(timeHalfOffTrack, 0.25f)*c;
 	}
 
-	ImGui::Begin("Test123");
-	ImGui::InputFloat("fell off track angle", &off_track_y_angle);
-	ImGui::End();
-
 	mat4 fell_off_track_mat = m4(1.0f);
-	if (state == PS_FELL_OFF_TRACK) {
+	if (fell_off_track) { // spin car around y axis
 		fell_off_track_mat = translationMatrix(v3(0.0f, 0.0f, 1.0f))
 			*  m4(rotationMatrix(v3(0.0f, 1.0f, 0.0f), off_track_y_angle))
 			* translationMatrix(v3(0.0f, 0.0f, -1.0f));
@@ -168,5 +241,17 @@ void Player::draw(mat4 view_proj_mat) {
 		* m4(rotationMatrix(v3(0.0f, 0.0f, 1.0f), z_angle))
 		* m4(rotationMatrix(v3(0.0f, 1.0f, 0.0f), y_angle))
 		* fell_off_track_mat;
-	car_model.draw(view_proj_mat * car_mat);
+	if (!exploded) {
+		car_model.draw(view_proj_mat * car_mat);
+	}
+
+	if (exploded && explosion_time < 1.0f) {
+		float s = 2.0f + 4.0f*explosion_time;
+		for (int i = 0; i < 5; i++) {
+			vec3 p = 2.0f * v3(randf(), randf(), randf()) - v3(1.0f);
+			float rot = (float)M_PI * randf();
+			explosion_model.draw(view_proj_mat * translationMatrix(explosion_center + p + v3(0.0f, 0.0f, 1.0f)) * 
+				m4(rotationMatrix(v3(0.0f, 0.0f, 1.0f), rot) * scaleMatrix(v3(s))));
+		}
+	}
 }

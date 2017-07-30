@@ -68,10 +68,12 @@
 
 
 #include "player.h"
+#include "pickup.h"
 #include "track.h"
 #include "game.h"
 
 #include "player.cpp"
+#include "pickup.cpp"
 #include "track.cpp"
 #include "game.cpp"
 

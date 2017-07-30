@@ -23,26 +23,31 @@ void Game::init() {
 	// load meshes
 	Player::car_model.load("data/models/car.mdl");
 	Player::explosion_model.load("data/models/explosion.mdl");
+	Pickup::gas_tank_model.load("data/models/gas_tank.mdl");
+	Pickup::oil_spill_model.load("data/models/oil_spill.mdl");
+
 	player.init();
 
 	// generate track
 	track.init();
-	track.generate(0.0f);
+	track.generate(0.1f);
 }
 
 void Game::destroy() {
-	// free gl resources
+	// free static gl resources
 	player.car_model.destroy();
 	player.explosion_model.destroy();
+	Pickup::gas_tank_model.destroy();
+	Pickup::oil_spill_model.destroy();
 }
 
 static float camera_laziness = 0.2f;
 void Game::updateCamera(float delta_time) {
-	vec3 camera_target_location = player.position + v3(-10.0f * dirFromAngle(player.heading), 8.0f);
+	vec3 camera_target_location = player.position + v3(-11.0f * dirFromAngle(player.heading), 8.0f);
 	float camera_target_y_angle = -player.heading + 0.5f * (float)M_PI;
 	if (player.speed < 0.0f) {
 		camera_target_y_angle -= (float)M_PI; // reversing
-		camera_target_location = player.position + v3(10.0f * dirFromAngle(player.heading), 8.0f);
+		camera_target_location = player.position + v3(11.0f * dirFromAngle(player.heading), 8.0f);
 	}
 
 	if (!player.fell_off_track) { // don't follow the player off track
@@ -77,7 +82,7 @@ void Game::tick(float delta_time) {
 	ImGui::End();
 
 	ImGui::Begin("track");
-	static float track_difficulty = 0.0f;
+	static float track_difficulty = 0.5f;
 	ImGui::SliderFloat("difficulty", &track_difficulty, 0.0f, 1.0f);
 	if (ImGui::Button("generate")) track.generate(track_difficulty);
 	ImGui::End();
@@ -92,6 +97,22 @@ void Game::tick(float delta_time) {
 #endif
 
 	player.tick(delta_time);
+
+	if (!player.alive && player.exploded && player.explosion_time > EXPLOSION_DURATION) {
+		// spawn player back on track
+		TrackSegment *s = track.findNearestSegment(player.last_position_on_track);
+		float d = dot(s->dir, player.last_position_on_track);
+		d = fmaxf(1.0f, fminf(s->dims.y - 1.0f, d));
+		player.respawn(v3(s->p + d*s->dir, s->dims.z), s->dir);
+	}
+
+	if (player.alive) {
+		// collect pickups
+		for (Pickup &p : track.pickups) {
+			p.tryCollect(&player);
+		}
+	}
+
 	player.checkTrack(&track);
 
 	updateCamera(delta_time);
@@ -160,6 +181,13 @@ void Game::drawHUD() {
 
 	float goal_x = (goal_meter_s.x-thickness) * fminf(1.0f, fmaxf(0.0f, distance_left / track.length));
 	drawRect(goal_meter_p + v2(goal_x, 0.0f), v2(thickness, fuel_meter_s.y));
+	// draw little flag
+	float x = goal_meter_p.x + goal_x + thickness;
+	float y0 = goal_meter_p.y + 0.666f * fuel_meter_s.y;
+	float y1 = goal_meter_p.y + fuel_meter_s.y;
+	debug_renderer.drawTriangle(v3(x, y0, 0.0f),
+		 v3(x + 0.25f * fuel_meter_s.y, 0.5f * (y0+y1), 0.0f), 
+		 v3(x, y1, 0.0f));
 
 	// draw fuel meter filling
 	vec2 fuel_fill = fuel_meter_s - v2(4.0f * thickness);

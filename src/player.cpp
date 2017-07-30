@@ -68,8 +68,20 @@ void Player::reset() {
 	distance = 0.0f;
 
 	heading = angleFromDir(v2(0.0f, 1.0f));
+	speed = 0.0f;
 	position.y = 4.0;
 	position.z = 50.0f;
+}
+
+void Player::respawn(vec3 p, vec2 dir) {
+	alive = true;
+	fell_off_track = false;
+	exploded = false;
+	oil_spill = 0.0f;
+
+	heading = angleFromDir(dir);
+	speed = 0.0f;
+	position = p;
 }
 
 void Player::checkTrack(Track *track) {
@@ -81,10 +93,21 @@ void Player::checkTrack(Track *track) {
 	rightOnTrack = track->traceZ(v2(position)+t, &z);
 	centerOnTrack = track->traceZ(v2(position), &z, &distance);
 	if (centerOnTrack) {
+		last_position_on_track = v2(position);
 		position.z = z;
 	} else {
 		onFellOffTrack();
 	}
+}
+
+void Player::onGasTank() {
+	const float GAS_TANK_FUEL = 1.0f / 20.0f;
+	fuel = fminf(1.0f, fuel + GAS_TANK_FUEL);
+}
+
+void Player::onOilSpill() {
+	if (oil_spill > 0.0f) return;
+	oil_spill = OIL_SPILL_DURATION;
 }
 
 void Player::onFellOffTrack() {
@@ -255,7 +278,7 @@ void Player::draw(mat4 view_proj_mat) {
 		car_model.draw(view_proj_mat * car_mat);
 	}
 
-	if (exploded && explosion_time < 1.0f) {
+	if (exploded && explosion_time < EXPLOSION_DURATION) {
 		float s = 2.0f + 4.0f*explosion_time;
 		for (int i = 0; i < 5; i++) {
 			vec3 p = 2.0f * v3(randf(), randf(), randf()) - v3(1.0f);

@@ -54,14 +54,16 @@ void Track::generate(float difficulty) {
 	const float segment_min_length = 20.0f;
 	const float segment_max_length = 30.0f;
 	const float segment_min_height = 10.0f;
-	const float segment_max_height_delta = 4.0f; //2.0f;
+	const float segment_max_height_delta = 0.0f; //2.0f;
 	const float segment_angle_max_delta = 0.125f * (float)M_PI; // 22.5°
 
 	float distance = 0.0f; // current distance
 
-	// generate a path of segments
+	// clear old
 	segments.clear();
+	pickups.clear();
 
+	// generate a path of segments
 	TrackSegment s; // current segment
 	s.p = v2(0.0f);
 	s.dir = v2(0.0f, 1.0f);
@@ -73,6 +75,13 @@ void Track::generate(float difficulty) {
 		s.dims.x = rand_rangef(segment_min_width, segment_max_width);
 		s.distance = distance;
 		distance += s.dims.y;
+
+		if (randf() < difficulty || true) { // place obstacle on this segment
+			float x = rand_rangef(-0.5f*s.dims.x + 2.0f, 0.5f*s.dims.x - 2.0f);
+			float y = randf() * s.dims.y;
+			float z = s.dims.z;
+			pickups.push_back(Pickup(PT_OIL_SPILL, v3(s.p + x*s.t + y*s.dir, z)));
+		}
 
 		segments.push_back(s);
 
@@ -94,6 +103,10 @@ void Track::generate(float difficulty) {
 	}
 
 	length = distance;
+
+	// place pickups
+	pickups.push_back(Pickup(PT_GAS_TANK, v3(0.0f, 12.0f, 50.0f)));
+	pickups.push_back(Pickup(PT_OIL_SPILL, v3(2.0f, 12.0f, 50.0f)));
 
 	// generate mesh from path
 	std::vector<vec3> points;
@@ -176,6 +189,68 @@ bool traceTriangleZ(vec2 p, float *z, vec3 t0, vec3 t1, vec3 t2) {
 bool traceQuadZ(vec2 p, float *z, vec3 q0, vec3 q1, vec3 q2, vec3 q3) {
 	return traceTriangleZ(p, z, q0, q1, q2) ||
 		traceTriangleZ(p, z, q3, q2, q1);
+}
+
+// copy pasta!
+TrackSegment *Track::findNearestSegment(vec2 p) {
+	// binary search potential segments
+	// this only works because segments are ordered in y direction
+
+	size_t li = 0; // lower bound
+	size_t ui = segments.size()-1; // upper bound
+	while (li <= ui) {
+		size_t pi = (li+ui)/2; // pivot
+		TrackSegment &s = segments[pi];
+		vec3 b0 = v3(s.p - 0.5f*s.dims.x*s.t, s.dims.z);
+		vec3 b1 = v3(s.p + 0.5f*s.dims.x*s.t, s.dims.z);
+
+		bool is_below = p.y < fminf(b0.y, b1.y);
+
+		if (!is_below) { // so is it above?
+			vec2 tp = s.p + s.dir*s.dims.y;
+			vec2 dir = s.dir;
+			vec3 t0 = v3(tp - 0.5f*s.dims.x*s.t, s.dims.z);
+			vec3 t1 = v3(tp + 0.5f*s.dims.x*s.t, s.dims.z);
+			if (pi+1 < segments.size()) {
+				TrackSegment ns = segments[pi+1];
+				dir = ns.dir;
+				t0 = v3(ns.p - 0.5f*ns.dims.x*ns.t, ns.dims.z);
+				t1 = v3(ns.p + 0.5f*ns.dims.x*ns.t, ns.dims.z);
+			}
+
+			bool is_above = p.y > fmaxf(t0.y, t1.y);
+
+			if (!is_above) {
+				// precisely check below
+				float dp = dot(s.dir, p-s.p);
+				is_below = dp < 0.0f;
+
+				if (!is_below) {
+					// precisely check above
+					is_above = dot(dir, p-tp) > 0.0f;
+
+					// we found a segment
+					if (!is_above) {
+						return &s;
+					}
+				}
+			}
+		}
+
+		// iterate
+		if (is_below) {
+			if (pi == 0) break; // prevent integer underflow
+			ui = pi - 1;
+		} else { // above
+			li = pi + 1;
+		}
+	}
+
+	if (ui == 0) return &segments[0];
+	if (li >= segments.size()-1) return &segments[segments.size()-1];
+
+	assert(false);
+	return nullptr;
 }
 
 bool Track::traceZ(vec2 p, float *z, float *distance) {
@@ -262,4 +337,9 @@ void Track::draw(mat4 view_proj_mat) {
 	glDisableVertexAttribArray((GLuint)TR_VA_NORMAL);
 
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
+
+	// draw all the pickups
+	for (Pickup &p : pickups) {
+		p.draw(view_proj_mat);
+	}
 }

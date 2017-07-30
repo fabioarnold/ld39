@@ -20,10 +20,12 @@ public:
 	void generate(float difficulty);
 	float length; // in meters
 
+	TrackSegment *findNearestSegment(vec2 p);
 	bool traceZ(vec2 p, float *z, float *distance = nullptr); // true if on track
 
 	void draw(mat4 view_proj_mat);
 
+	std::vector<Pickup> pickups;
 private:
 	std::vector<TrackSegment> segments;
 

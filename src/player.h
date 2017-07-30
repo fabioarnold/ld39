@@ -14,6 +14,7 @@ enum PlayerState {
 */
 
 const float OIL_SPILL_DURATION = 0.5f;
+const float EXPLOSION_DURATION = 1.0f;
 const float HALF_OFF_TRACK_DURATION = 1.0f;
 
 class Track;
@@ -42,10 +43,12 @@ struct Player {
 
 	void init();
 	void reset();
+	void respawn(vec3 p, vec2 dir);
 
 	void onExploded();
 	void onFellOffTrack();
-	void onOilSpill() {if (fequal(oil_spill, 0.0f)) oil_spill = OIL_SPILL_DURATION;}
+	void onGasTank();
+	void onOilSpill();
 
 	// oil spill state
 	float oil_spill = 0.0f; // if >0 in effect -> no control
@@ -65,6 +68,7 @@ struct Player {
 	bool centerOnTrack;
 	bool leftOnTrack;
 	bool rightOnTrack;
+	vec2 last_position_on_track;
 	float timeHalfOffTrack = 0.0f; // if this reaches HALF_OFF_TRACK_DURATION -> fall off track
 	void checkTrack(Track *track); // updates the *OnTrack flags
 

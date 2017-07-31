@@ -1,22 +1,23 @@
-- level progression
-	- generate level chunks progressively
-	- display current level
+x level progression
+	x generate level chunks progressively
+	x display current level
 - goal (gas station)
 x respawn
 
 x pickups
 	x oil spill
 	x gas tank
-- place pickups
+x place pickups
 	x oil spill
-	- gas tanks
+	x gas tanks
 
 
 x hud
 	x show distance traveled
 	x show fuel gauge
 
-
 x falling off track
 x explosion
 	x needs more randomness
+
+x story

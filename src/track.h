@@ -14,10 +14,13 @@ const int TR_MAX_VERTEX_COUNT = 1024;
 
 class Track {
 public:
-	void init();
+	static void init();
+	static void destroy();
+
+	static MDLModel finish_line_model;
 
 	// difficulty 0: no obstacles, 1: full of obstacles
-	void generate(float difficulty);
+	void generate(float difficulty, vec2 sp = v2(0.0f), vec2 sdir = v2(0.0f, 1.0f), float swidth = 18.0f);
 	float length; // in meters
 
 	TrackSegment *findNearestSegment(vec2 p);
@@ -26,14 +29,14 @@ public:
 	void draw(mat4 view_proj_mat);
 
 	std::vector<Pickup> pickups;
-private:
 	std::vector<TrackSegment> segments;
 
+private:
 	float *_vertex_data = nullptr;
 	int _vertex_count;
 
-	Shader _shader;
-	GLint _mvp_loc;
-	GLint _color_loc;
+	static Shader _shader;
+	static GLint _mvp_loc;
+	static GLint _color_loc;
 	GLuint _vbo = 0;
 };

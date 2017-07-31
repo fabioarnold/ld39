@@ -1,6 +1,9 @@
 MDLModel Player::car_model;
 MDLModel Player::explosion_model;
 
+float IDLE_FUEL_CONSUMPTION = 1.0f / 60.0f;
+float ACCELERATION_FUEL_CONSUMPTION = 1 / 60.0f;
+
 void Player::init() {
 	idle_action = car_model.getActionByName("idle");
 	steer_left_action = car_model.getActionByName("steer_left");
@@ -145,6 +148,9 @@ void Player::tick(float delta_time) {
 	spin_action->frame %= spin_action->frame_count-1;
 	explosion_model.applyAction(spin_action);
 
+	// idle fuel consumption
+	if (!exploded) fuel = fmaxf(0.0f, fuel - delta_time * IDLE_FUEL_CONSUMPTION);
+
 	if (!alive) {
 		if (fell_off_track) {
 			off_track_time += delta_time;
@@ -186,7 +192,10 @@ void Player::tick(float delta_time) {
 	}
 
 	// controls
-	if (controls.button_accelerate.down()) speed += delta_time * acceleration;
+	if (controls.button_accelerate.down()) {
+		speed += delta_time * acceleration;
+		fuel = fmaxf(0.0f, fuel - delta_time * ACCELERATION_FUEL_CONSUMPTION);
+	}
 	if (controls.button_decelerate.down()) {
 		float prev_speed = speed;
 		speed -= delta_time * deceleration;

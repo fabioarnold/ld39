@@ -1,6 +1,12 @@
 const int TR_VA_POSITION = 0;
 const int TR_VA_NORMAL = 1;
 
+MDLModel Track::finish_line_model;
+
+Shader Track::_shader;
+GLint Track::_mvp_loc;
+GLint Track::_color_loc;
+
 void Track::init() {
 	char vert_source[] = {
 		"uniform mat4 mvp;							\n"
@@ -41,14 +47,22 @@ void Track::init() {
 	_shader.use();
 	_mvp_loc = _shader.getUniformLocation("mvp");
 	_color_loc = _shader.getUniformLocation("color");
+
+	finish_line_model.load("data/models/finish_line.mdl");
+}
+
+void Track::destroy() {
+	_shader.destroy();
+	finish_line_model.destroy();
 }
 
 float rand_rangef(float min, float max) {
 	return min + randf() * (max - min);
 }
 
-void Track::generate(float difficulty) {
-	const float max_distance = 1000.0f; // 1km
+void Track::generate(float difficulty, vec2 sp, vec2 sdir, float swidth) {
+	const float GAS_TANK_INTERVAL = 400.0f + 400.0f*difficulty;
+	float max_distance = 1904.0f + 1000.0f*difficulty; // in meters
 	const float segment_min_width = 16.0f;
 	const float segment_max_width = 20.0f;
 	const float segment_min_length = 20.0f;
@@ -65,18 +79,28 @@ void Track::generate(float difficulty) {
 
 	// generate a path of segments
 	TrackSegment s; // current segment
-	s.p = v2(0.0f);
-	s.dir = v2(0.0f, 1.0f);
+	s.p = sp;
+	s.dir = sdir;
 	s.t = v2(s.dir.y, -s.dir.x);
+	s.dims.x = swidth;
 	s.dims.y = segment_max_length; // initial length
 	s.dims.z = 50.0f; // initial height
 
+	float gas_tank_placed_at = 0.0f;
+
 	while (distance < max_distance) {
-		s.dims.x = rand_rangef(segment_min_width, segment_max_width);
 		s.distance = distance;
 		distance += s.dims.y;
 
-		if (randf() < difficulty || true) { // place obstacle on this segment
+		if (distance - gas_tank_placed_at > GAS_TANK_INTERVAL) {
+			// place gas tank
+			float x = rand_rangef(-0.5f*s.dims.x + 2.0f, 0.5f*s.dims.x - 2.0f);
+			float y = randf() * s.dims.y;
+			float z = s.dims.z;
+			pickups.push_back(Pickup(PT_GAS_TANK, v3(s.p + x*s.t + y*s.dir, z)));
+			gas_tank_placed_at = distance;
+		}
+		if (randf() < difficulty) { // place obstacle on this segment
 			float x = rand_rangef(-0.5f*s.dims.x + 2.0f, 0.5f*s.dims.x - 2.0f);
 			float y = randf() * s.dims.y;
 			float z = s.dims.z;
@@ -87,8 +111,9 @@ void Track::generate(float difficulty) {
 
 		s.p = s.p + s.dims.y * s.dir;
 
+		s.dims.x = rand_rangef(segment_min_width, segment_max_width);
 		s.dims.y = rand_rangef(segment_min_length, segment_max_length);
-		s.dims.y = fminf(s.dims.y, max_distance - distance + 0.1f); // clamp
+		s.dims.y = fminf(s.dims.y, max_distance - distance + 1.0f); // clamp
 		s.dims.z = s.dims.z + randf() * segment_max_height_delta;
 
 		float angle = angleFromDir(s.dir);
@@ -104,15 +129,11 @@ void Track::generate(float difficulty) {
 
 	length = distance;
 
-	// place pickups
-	pickups.push_back(Pickup(PT_GAS_TANK, v3(0.0f, 12.0f, 50.0f)));
-	pickups.push_back(Pickup(PT_OIL_SPILL, v3(2.0f, 12.0f, 50.0f)));
-
 	// generate mesh from path
 	std::vector<vec3> points;
 	std::vector<int> indices;
 	const int POINTS_PER_SEGMENT = 4;
-	points.reserve(segments.size()*POINTS_PER_SEGMENT);
+	points.reserve((segments.size()+1)*POINTS_PER_SEGMENT);
 	for (size_t i = 0; i < segments.size(); i++) {
 		s = segments[i];
 		points.push_back(v3(s.p - 0.5f * s.dims.x * s.t, 0.0f));
@@ -120,8 +141,13 @@ void Track::generate(float difficulty) {
 		points.push_back(v3(s.p + 0.5f * s.dims.x * s.t, s.dims.z));
 		points.push_back(v3(s.p + 0.5f * s.dims.x * s.t, 0.0f));
 	}
-	indices.reserve((segments.size() - 1)*3*6);
-	for (int i = 0; i < (int)segments.size() - 1; i++) {
+	points.push_back(v3(s.p + s.dir*s.dims.y - 0.5f * s.dims.x * s.t, 0.0f));
+	points.push_back(v3(s.p + s.dir*s.dims.y - 0.5f * s.dims.x * s.t, s.dims.z));
+	points.push_back(v3(s.p + s.dir*s.dims.y + 0.5f * s.dims.x * s.t, s.dims.z));
+	points.push_back(v3(s.p + s.dir*s.dims.y + 0.5f * s.dims.x * s.t, 0.0f));
+
+	indices.reserve(segments.size()*3*6);
+	for (int i = 0; i < (int)segments.size(); i++) {
 		for (int j = 0; j < 3; j++) {
 			indices.push_back(POINTS_PER_SEGMENT * i + j);
 			indices.push_back(POINTS_PER_SEGMENT * i + j + 1);
@@ -342,4 +368,11 @@ void Track::draw(mat4 view_proj_mat) {
 	for (Pickup &p : pickups) {
 		p.draw(view_proj_mat);
 	}
+
+	// draw the finish line
+	TrackSegment &s = segments.back();
+	mat4 model_mat = translationMatrix(v3(s.p, s.dims.z))
+		* m4(rotationMatrix(v3(0.0f, 0.0f, 1.0f), angleFromDir(s.dir) + 0.5f*(float)M_PI) 
+		* scaleMatrix(v3(0.5f*s.dims.x, 1.0f, 1.0f)));
+	finish_line_model.draw(view_proj_mat * model_mat);
 }

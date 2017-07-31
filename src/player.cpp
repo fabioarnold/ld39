@@ -2,7 +2,7 @@ MDLModel Player::car_model;
 MDLModel Player::explosion_model;
 
 float IDLE_FUEL_CONSUMPTION = 1.0f / 60.0f;
-float ACCELERATION_FUEL_CONSUMPTION = 1 / 60.0f;
+float ACCELERATION_FUEL_CONSUMPTION = 1.0f / 60.0f;
 
 void Player::init() {
 	idle_action = car_model.getActionByName("idle");
@@ -72,8 +72,6 @@ void Player::reset() {
 
 	heading = angleFromDir(v2(0.0f, 1.0f));
 	speed = 0.0f;
-	position.y = 4.0;
-	position.z = 50.0f;
 }
 
 void Player::respawn(vec3 p, vec2 dir) {

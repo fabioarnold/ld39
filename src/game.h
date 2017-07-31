@@ -5,6 +5,7 @@ public:
 
 	Player player; // the car
 
+	bool gameover;
 	bool quit;
 
 	Track tracks[2];
@@ -13,6 +14,7 @@ public:
 	int level;
 
 	void init();
+	void reset();
 	void destroy();
 
 	void updateCamera(float delta_time);

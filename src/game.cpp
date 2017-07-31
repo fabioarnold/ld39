@@ -30,6 +30,16 @@ void Game::init() {
 
 	player.init();
 
+	reset();
+}
+
+void Game::reset() {
+	gameover = false;
+
+	player.reset();
+	camera.location = v3(0.0f);
+	camera.euler_angles = v3(0.0f);
+
 	level = 1;
 
 	current_track_idx = 0;
@@ -38,6 +48,13 @@ void Game::init() {
 	tracks[current_track_idx].generate(0.1f*(float)level);
 	TrackSegment &s = tracks[current_track_idx].segments.back();
 	tracks[1-current_track_idx].generate(0.1f*(float)(level+1), s.p+s.dir*s.dims.y, s.dir, s.dims.x);
+
+	// place player on new track
+	TrackSegment &s0 = tracks[current_track_idx].segments.front();
+	player.position = v3(s0.p + 4.0f*s0.dir, s0.dims.z);
+	player.heading = angleFromDir(s0.dir);
+	player.speed = 0.0f;
+	player.fuel = 1.0f;
 }
 
 void Game::destroy() {
@@ -98,44 +115,63 @@ void Game::tick(float delta_time) {
 	ImGui::End();
 #endif
 
-	player.tick(delta_time);
-
-	if (!player.alive && player.exploded && player.explosion_time > EXPLOSION_DURATION) {
-		// spawn player back on track
-		TrackSegment *s = tracks[current_track_idx].findNearestSegment(player.last_position_on_track);
-		float d = dot(s->dir, player.last_position_on_track);
-		d = fmaxf(1.0f, fminf(s->dims.y - 1.0f, d));
-		player.respawn(v3(s->p + d*s->dir, s->dims.z), s->dir);
-	}
-
-	if (player.alive) {
-		// collect pickups
-		for (Pickup &p : tracks[current_track_idx].pickups) {
-			p.tryCollect(&player);
+	if (gameover) {
+		// press any key
+		if (player.controls.button_steer_left.clicked()  ||
+			player.controls.button_steer_right.clicked() ||
+			player.controls.button_accelerate.clicked()  ||
+			player.controls.button_decelerate.clicked())
+		{
+			reset(); // restart game
 		}
+	} else {
+		player.tick(delta_time);
+		if (fequal(player.fuel, 0.0f)) {
+			player.onExploded();
+			gameover = true;
+		}
+
+		if (!player.alive && player.exploded && player.explosion_time > EXPLOSION_DURATION) {
+			// spawn player back on track
+			TrackSegment *s = tracks[current_track_idx].findNearestSegment(player.last_position_on_track);
+			float d = dot(s->dir, player.last_position_on_track);
+			d = fmaxf(1.0f, fminf(s->dims.y - 1.0f, d));
+			player.respawn(v3(s->p + d*s->dir, s->dims.z), s->dir);
+		}
+
+		if (player.alive) {
+			// collect pickups
+			for (Pickup &p : tracks[current_track_idx].pickups) {
+				p.tryCollect(&player);
+			}
+		}
+
+		player.checkTrack(&tracks[current_track_idx]);
+		// goal detection
+		if (tracks[current_track_idx].findNearestSegment(player.last_position_on_track) == &tracks[current_track_idx].segments.back()) {
+			
+			//player.alive = false;
+			current_track_idx = 1-current_track_idx; // make next current
+			// place player on new track
+			TrackSegment &s0 = tracks[current_track_idx].segments.front();
+			player.position = v3(s0.p + 4.0f*s0.dir, s0.dims.z);
+			player.heading = angleFromDir(s0.dir);
+			player.speed = 0.0f;
+			player.fuel = 1.0f;
+
+			level++;
+
+			// generate new next track
+			TrackSegment &s = tracks[current_track_idx].segments.back();
+			tracks[1-current_track_idx].generate(0.1f*(float)(level+1), s.p+s.dir*s.dims.y, s.dir, s.dims.x);
+		}
+
+		updateCamera(delta_time);
 	}
 
-	player.checkTrack(&tracks[current_track_idx]);
-	// goal detection
-	if (tracks[current_track_idx].findNearestSegment(player.last_position_on_track) == &tracks[current_track_idx].segments.back()) {
-		
-		//player.alive = false;
-		current_track_idx = 1-current_track_idx; // make next current
-		TrackSegment &s0 = tracks[current_track_idx].segments.front();
-		player.position = v3(s0.p + 4.0f*s0.dir, s0.dims.z); // place player on new track
-		player.heading = angleFromDir(s0.dir);
-		player.speed = 0.0f;
-		player.fuel = 1.0f;
 
-		level++;
 
-		// generate new next track
-		TrackSegment &s = tracks[current_track_idx].segments.back();
-		tracks[1-current_track_idx].generate(0.1f*(float)(level+1), s.p+s.dir*s.dims.y, s.dir, s.dims.x);
-	}
-
-	updateCamera(delta_time);
-
+	// draw everything
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 	for (int i = 0; i < (int)ARRAY_COUNT(tracks); i++) {
@@ -144,7 +180,6 @@ void Game::tick(float delta_time) {
 	player.draw(camera.view_proj_mat);
 
 	drawHUD();
-
 }
 
 void drawRect(vec2 p, vec2 s) {
@@ -219,6 +254,18 @@ void Game::drawHUD() {
 	fuel_fill.x *= fminf(1.0f, fmaxf(0.0f, player.fuel));
 	debug_renderer.setColor(1.0f, 0.0f, 0.0f, 0.5f);
 	drawRect(fuel_meter_p + v2(2.0f * thickness), fuel_fill);
+
+	if (gameover) {
+		debug_renderer.setColor(0.0f, 0.0f, 0.0f, 0.5f);
+		drawRect(v2(0.0f), v2((float)video.width, (float)video.height));
+		sth_dim_text(font_stash, font_opensans, 2.0f*font_size, "GAME OVER", &minx, &miny, &maxx, &maxy);
+		vec3 center = v3(0.5f * (float)video.width, 0.5f * (float)video.height, 0.0f);
+		center.x -= 0.5f * (maxx - minx);
+		center.y -= 0.5f * (maxy - miny);
+		sth_begin_draw(font_stash, proj_mat.e);
+		sth_draw_text(font_stash, font_opensans, 2.0f*font_size, video.pixel_scale, center.e, font_color.e, "GAME OVER", nullptr);
+		sth_end_draw(font_stash);
+	}
 
 	// abuse the debug renderer
 	glDisable(GL_DEPTH_TEST);

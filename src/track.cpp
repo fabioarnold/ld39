@@ -113,7 +113,7 @@ void Track::generate(float difficulty, vec2 sp, vec2 sdir, float swidth) {
 
 		s.dims.x = rand_rangef(segment_min_width, segment_max_width);
 		s.dims.y = rand_rangef(segment_min_length, segment_max_length);
-		s.dims.y = fminf(s.dims.y, max_distance - distance + 1.0f); // clamp
+		s.dims.y = fminf(s.dims.y, max_distance - distance + 0.99f); // clamp
 		s.dims.z = s.dims.z + randf() * segment_max_height_delta;
 
 		float angle = angleFromDir(s.dir);
